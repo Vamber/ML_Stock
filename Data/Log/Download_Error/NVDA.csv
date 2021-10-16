@@ -1,0 +1,9 @@
+date,stock_name,function_name,function_args
+2022-07-18,NVDA,compute_google_trend_score_for_keyword,NVDA
+2022-07-18,NVDA,compute_google_trend_score_for_keyword,NVDA
+2022-07-18,NVDA,compute_google_trend_score_for_keyword,NVDA
+2022-07-18,NVDA,compute_google_trend_score_for_keyword,NVDA
+2022-07-18,NVDA,compute_google_trend_score_for_keyword,NVDA
+2022-07-18,NVDA,compute_google_trend_score_for_keyword,NVDA
+2022-07-18,NVDA,get_the_number_of_news_published_pertaining_to_the_keyword,Nvidia
+2022-07-18,NVDA,compute_google_trend_score_for_keyword,RJEWDDF
