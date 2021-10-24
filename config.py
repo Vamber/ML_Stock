@@ -48,9 +48,9 @@ company = "Netflix"
 
 keyword = "Nvidia"
 
-code = "NFLXERR"
+code = "NFLX"
 
-date = "2023-1-5"
+date = "2021-1-5"
 
 
 
