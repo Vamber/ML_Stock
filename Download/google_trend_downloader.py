@@ -1,15 +1,14 @@
 
 
-from Download.feature_downloader_interface import feature_downloader_interface
+from Download.feature_downloader_template import feature_downloader_template
 from Utils.google_trends_utils import get_dataset_google_trend_score_for_keyword
 from Utils.google_trend_scoring_strategy import compute_google_trend_score_for_keyword_from_dataset
 
-import os
-from os import path
-import csv
-import pandas as pd
 
-class google_trend_downloader(feature_downloader_interface):
+
+
+
+class google_trend_downloader(feature_downloader_template):
 
 
 
@@ -22,57 +21,24 @@ class google_trend_downloader(feature_downloader_interface):
                 process_func=compute_google_trend_score_for_keyword_from_dataset
                 ):
 
-        #initilize all instance variable value
-        self.NASDAQ_code = NASDAQ_code
-        self.keyword = keyword
-        self.start_date = "2018-2-18"
-        self.download_func = download_func
-        self.process_func = process_func
+      
 
-        # setting up path to work_dir
-        # A work_dir, in a sense, is where the downloader function does its work
-        # For example, it contains all downloaded raw features, dates_downloaded.csv, dates_not_downloaded.csv,
-        # last_date_process.csv
+        work_dir = "Data/Feature/" + NASDAQ_code + "/" + "Raw_Features/Google_Trends/" + keyword
 
-        self.work_dir = "Data/Feature/" + self.NASDAQ_code + "/" + "Raw_Features/Google_Trends/" + self.keyword
-
-        if not path.exists(self.work_dir):
-            os.makedirs(self.work_dir)
-
-        # create dates_downloaded.csv, dates_not_downloaded.csv, last_date_process.csv, if not exist
-        # and write the collumn header in them
-
-        for file_name in ["dates_downloaded.csv" , "dates_not_downloaded.csv",  "last_date_processed.csv"]:
-            file_name = self.work_dir + "/" + file_name
-            if not path.exists(file_name):
-                with open(file_name, mode = "w") as f:
-                    f = csv.writer(f)
-                    f.writerow(["dates"])
+        #Using the super class to ensure a standard enviroment of instantiation
+        super().__init__(NASDAQ_code, keyword, start_date, download_func, process_func, work_dir)
 
     
 
 
+    
+    # write downloaded feature to disk, aka, creating a file
+    # since the data downloaded is df, we can just use df.to_csv
+    def store_raw_feature_to_Data(self, raw_feature, file_name):
+        raw_feature.to_csv(self.work_dir + "/" + file_name)
 
 
 
-
-
-
-    def check_date_for_latest_download(self):
-        dates_downloaded_table_path = self.work_dir + "/" + "dates_downloaded.csv"
         
-        df = pd.read_csv(dates_downloaded_table_path)
-        if df.empty:
-            return self.start_date
-        else:
-            #inherited from Super
-            df = self.sort_table_by_dates(dates_downloaded_table_path)
-            return df.iloc[-1]["dates"]
-
-
-    def f(self):
-        return self.get_lst_of_dates_between_target_and_yesterday("2021-2-18")
-
-                
 
 
