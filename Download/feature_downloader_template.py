@@ -17,6 +17,7 @@ from datetime import timedelta
 import csv
 from os import path
 import os
+import datetime as DT
 
 
 class feature_downloader_template():
@@ -84,18 +85,43 @@ class feature_downloader_template():
 
 
 
-
+    ##
+    # @Need to be Over-Write
+    ##
     def store_raw_feature_to_Data(self, raw_feature, file_name):
         raise Exception("store_raw_feature_to_Data" + "not implemented")
 
 
 
     def get_lst_of_dates_missing_and_clear_dates_not_downloaded(self):
-        raise Exception("get_lst_of_dates_missing_and_clear_dates_not_downloaded" + " not implemented")
+        missing_dates_table_path = self.work_dir + "/" + "dates_not_downloaded.csv"
+        df = pd.read_csv(missing_dates_table_path)
+
+        os.remove(missing_dates_table_path)
+        with open(missing_dates_table_path, mode = "w") as f:
+            f = csv.writer(f)
+            f.writerow(["dates"])
+
+        #notice how there is a unique() there,
+        #this was implemented this way because there could be redundant dates
+        
+        return list(df["dates"].unique())
 
 
     def redownload_missing_raw_feature_data(self):
-        raise Exception("redownload_missing_raw_feature_data" + " not implemented")
+        lst_of_dates = self.get_lst_of_dates_missing_and_clear_dates_not_downloaded()
+
+        for date in lst_of_dates:
+            data = self.download_func(self.NASDAQ_code, date, self.keyword)
+
+            if data is None:
+                self.append_date_to_dates_not_downloaded_csv(date)
+
+            else:
+                self.append_date_to_dates_downloaded_csv(date)
+                self.store_raw_feature_to_Data(data, date + ".csv")
+
+        
     
 
     def is_download_successful_for_everyday(self):
@@ -110,20 +136,29 @@ class feature_downloader_template():
         raise Exception("reprocess_raw_feature" + " not implemented")
 
 
-    # despite this being an interface, there is still few method they can inherit
-    # this method takes in a path to table with column called [dates], contains dates which may not be sorted
-    # and return a df object, but with dates sorted in order
-    # in the end, the original data_frame object on disk, is still unmodified
-    # the design was implemented this way to reduce disk write. 
+    #sort the table, and also update the file-system
     def sort_table_by_dates(self, path_to_table):
         df = pd.read_csv(path_to_table)
         df = df.sort_values(by="dates", ascending = True)
+        os.remove(path_to_table)
+        df.to_csv(path_to_table, index=False)
         return df
 
 
     # return a lst looking like this ["2019-1-11", "209-1-12" ... "yesterday"]
     def get_lst_of_dates_between_target_and_yesterday(self, target_date):
+
         yesterday = str(date.today() - timedelta(days = 1))
+
+        year_month_day_lst = target_date.split("-")
+        year = int(year_month_day_lst[0])
+        month = int(year_month_day_lst[1])
+        day = int(year_month_day_lst[2])
+        target_date = DT.date(year, month, day)
+        target_date = target_date+ DT.timedelta(days=1)
+
+        #if the target date is 2018-2-18, then we would want to start downloading on
+        #    2018-2-19, because the data from 2018-2-18 has already been downloaded. 
         dates = list(pd.date_range(start = target_date, end = yesterday))    
         return [str(i).split()[0] for i in dates]
 
@@ -142,3 +177,11 @@ class feature_downloader_template():
         
 
 
+############
+#
+#
+# Sort Table by dates, make sure dates return by
+# get_lst_of_missing_dates_is_unique
+#
+#
+############

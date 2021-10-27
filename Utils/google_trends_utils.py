@@ -4,6 +4,7 @@
 from pytrends.request import TrendReq
 import datetime as DT
 from Utils.write_error_to_Log import write_download_error_msg_to_Log
+from Utils.lst_of_proxies import proxies
 
 #####
 #
@@ -46,7 +47,8 @@ def get_dataset_google_trend_score_for_keyword_helper(keyword, date):
                           timeout=(10,25),
 			                    retries=5, 
                           backoff_factor=0.1,
-			                    requests_args={'verify':True})
+			                    requests_args={'verify':True},
+                          proxies=proxies)
       
 
 
