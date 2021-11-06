@@ -22,7 +22,7 @@ def compute_google_trend_score_for_keyword_from_dataset(dataset_from_a_particula
 
     df["only_day"] = df["date"].apply(lambda s: s.split(" ")[0])
     df = df.groupby("only_day").max()
-    return list(df[keyword])
+    return df[[keyword]]
 
 
 

@@ -8,6 +8,9 @@ pip3 install sentencepiece
 #Google new Api to retrieve Link of a news from a particular date
 pip3 install GoogleNews
 
+#This is the alternative Google News API that supports Proxy
+pip3 install pygooglenews
+
 # bs4 is the lib that actally get the paragraphs from the website
 pip3 install beautifulsoup4
 
@@ -21,4 +24,4 @@ pip3 install pytrends
 pip3 install yfinance --upgrade --no-cache-dir
 
 #Download Jupyter-Notebook
-pip install jupyter notebook
+pip3 install jupyter notebook

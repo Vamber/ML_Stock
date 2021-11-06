@@ -34,9 +34,13 @@ class feature_downloader_template():
         self.download_func = download_func
         self.process_func = process_func
         self.work_dir = work_dir
+        self.process_work_dir = self.work_dir.replace("/Raw_Features/", "/Processed_Features/")
 
         if not path.exists(self.work_dir):
             os.makedirs(self.work_dir)
+
+        if not path.exists(self.process_work_dir):
+            os.makedirs(self.process_work_dir)
 
         for file_name in ["dates_downloaded.csv" , "dates_not_downloaded.csv",  "last_date_processed.csv"]:
             file_name = self.work_dir + "/" + file_name
@@ -46,8 +50,27 @@ class feature_downloader_template():
                     f.writerow(["dates"])
   
 
+    ##
+    # @Need to be Over-Write
+    ##
+    def store_raw_feature_to_Data(self, raw_feature, file_name):
+        raise Exception("store_raw_feature_to_Data" + "not implemented")
 
+    #####
+    #@Need to be Overwrite by child class
+    #
+    ####
+    def store_processed_feature_to_Data(self, date):
+        raise Exception("store_processes_feature_to_Data" + " not implemented")
 
+    #####
+    # @ Need to be Over_write
+    #
+    ######
+    def type_of_feature_downloader(self):
+        raise Exception("type_of_feature_downloader" + "not implemented")
+
+    
 
 
     #this helper function can be inherited 
@@ -63,10 +86,28 @@ class feature_downloader_template():
             return df.iloc[-1]["dates"]
 
 
+    def describe(self):
+        s =  "[" + self.type_of_feature_downloader() + "]" + "  " 
+        s += "[" + self.NASDAQ_code + "]" + "  "
+        s += "[" + self.keyword + "]" + " "
+        s += self.check_date_for_latest_download() + " "
+        s += "Download_success=" + str(self.is_download_successful_for_everyday())
+        return s
 
-            
 
 
+    def check_date_for_latest_process(self):
+        last_date_processed_path = self.work_dir + "/" + "last_date_processed.csv"
+
+        df = pd.read_csv(last_date_processed_path)
+        if df.empty:
+            return self.start_date
+        else:
+            return df.iloc[-1]["dates"]
+
+
+
+        
     # Download the raw feature for every single between last download and today
     # 
     def download_raw_feature_data(self):
@@ -85,11 +126,7 @@ class feature_downloader_template():
 
 
 
-    ##
-    # @Need to be Over-Write
-    ##
-    def store_raw_feature_to_Data(self, raw_feature, file_name):
-        raise Exception("store_raw_feature_to_Data" + "not implemented")
+
 
 
 
@@ -123,13 +160,32 @@ class feature_downloader_template():
 
         
     
-
+    # basically if there is any day not downloaded, return false
+    # only when the dates_not_downloaded.csv is empty, return True
     def is_download_successful_for_everyday(self):
-        raise Exception("is_download_successful_for_everyday" + " not implemented")
+        missing_data_table_path = self.work_dir + "/" + "dates_not_downloaded.csv"
+        df = pd.read_csv(missing_data_table_path)
+
+        return df.empty
+
 
 
     def process_raw_feature(self):
-        raise Exception("process_raw_feature" + " not implemented")
+
+        if not self.is_download_successful_for_everyday():
+            return 
+        
+        last_date_processed = self.check_date_for_latest_process()
+        last_date_downloaded = self.check_date_for_latest_download()
+        #notice, the lst_of_dates actually doesn't include last_date_processed
+        #Because it is already processes. 
+        lst_of_dates = self.get_lst_of_dates_between_two_date(last_date_processed, last_date_downloaded)
+
+        for date in lst_of_dates:
+            self.store_processed_feature_to_Data(date)
+
+        self.update_date_last_processed(last_date_downloaded)
+
     
     
     def reprocess_raw_feature(self):
@@ -143,6 +199,13 @@ class feature_downloader_template():
         os.remove(path_to_table)
         df.to_csv(path_to_table, index=False)
         return df
+
+    
+    def get_lst_of_dates_downloaded(self):
+        path_to_table = self.work_dir + "/" + "dates_downloaded.csv"
+        df = pd.read_csv(path_to_table)
+        return list(df["dates"])
+
 
 
     # return a lst looking like this ["2019-1-11", "209-1-12" ... "yesterday"]
@@ -163,6 +226,20 @@ class feature_downloader_template():
         return [str(i).split()[0] for i in dates]
 
 
+    # Just like the func above, the dates returned actually doesn't include from_date
+    def get_lst_of_dates_between_two_date(self, from_date, to_date):
+        year_month_day_lst = from_date.split("-")
+        year = int(year_month_day_lst[0])
+        month = int(year_month_day_lst[1])
+        day = int(year_month_day_lst[2])
+        from_date = DT.date(year, month, day)
+        from_date = from_date + DT.timedelta(days=1)
+
+        dates = list(pd.date_range(start = from_date, end = to_date))    
+        return [str(i).split()[0] for i in dates]
+
+
+
     def append_date_to_dates_downloaded_csv(self, date):
         path_to_table = self.work_dir + "/" + "dates_downloaded.csv"
         with open(path_to_table, mode = "a") as f:
@@ -173,6 +250,15 @@ class feature_downloader_template():
         path_to_table = self.work_dir + "/" + "dates_not_downloaded.csv"
         with open(path_to_table, mode = "a") as f:
             f = csv.writer(f)
+            f.writerow([date])
+
+    #this basically deltes the old file and making a new one
+    def update_date_last_processed(self, date):
+        path_to_table = self.work_dir + "/" + "last_date_processed.csv"
+        os.remove(path_to_table)
+        with open(path_to_table, mode = "a") as f:
+            f = csv.writer(f)
+            f.writerow(["dates"])
             f.writerow([date])
         
 
