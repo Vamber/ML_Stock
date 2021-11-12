@@ -9,8 +9,9 @@ from datetime import date
 
 
 class stock_price_downloader(feature_downloader_template):
-
-
+    defualt_download_func = get_historical_dataset_for_a_stock
+    default_process_func = lambda : 1/0
+    name = "stock_price"
 
     # NASDAQ_Code is needed for download_func to write log
     # keyword is not needed for stock price
@@ -22,11 +23,14 @@ class stock_price_downloader(feature_downloader_template):
                 NASDAQ_code, 
                 keyword = "null", 
                 start_date = "null",
-                download_func=get_historical_dataset_for_a_stock,
-                process_func= lambda : 1/0   #still working on this
+                download_func=None,
+                process_func=None   #still working on this
                 ):
 
-      
+        if download_func is None:
+            download_func = stock_price_downloader.defualt_download_func
+        if process_func is None:
+            process_func = stock_price_downloader.default_process_func
 
         work_dir = "Data/Feature/" + NASDAQ_code + "/" + "Raw_Features/Stock_Price" 
 
@@ -34,8 +38,12 @@ class stock_price_downloader(feature_downloader_template):
         super().__init__(NASDAQ_code, keyword, start_date, download_func, process_func, work_dir)
 
     
+    def sanity_check_if_keyword_has_data_on_default_start_date():
+        return stock_price_downloader.defualt_download_func
+
+
     def type_of_feature_downloader(self):
-        return "stock_price"
+        return stock_price_downloader.name
 
     
 

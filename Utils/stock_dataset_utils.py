@@ -22,7 +22,7 @@ def get_historical_dataset_for_a_stock_helper(stock_NASDAQ_code):
 
 	try:
 		stock = yf.Ticker(stock_NASDAQ_code)
-		hist = stock.history(period = "max")
+		hist = stock.history(period = "99y")
 		return  hist
 
 	except:

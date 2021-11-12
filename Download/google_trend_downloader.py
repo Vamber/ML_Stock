@@ -14,7 +14,9 @@ import csv
 
 
 class google_trend_downloader(feature_downloader_template):
-
+    default_download_func = get_dataset_google_trend_score_for_keyword
+    default_process_func = compute_google_trend_score_for_keyword_from_dataset
+    name = "google_trend"
 
 
     # NASDAQ_Code is needed for download_func to write log
@@ -22,20 +24,27 @@ class google_trend_downloader(feature_downloader_template):
     # Start date is the earliest date to search for google trends
     def __init__(self, NASDAQ_code, keyword, 
                 start_date = "2018-02-18",
-                download_func=get_dataset_google_trend_score_for_keyword,
-                process_func=compute_google_trend_score_for_keyword_from_dataset
+                download_func=None,
+                process_func=None
                 ):
 
-      
+        if download_func is None:
+            download_func = google_trend_downloader.default_download_func
+        if process_func is None:
+            process_func = google_trend_downloader.default_process_func
 
         work_dir = "Data/Feature/" + NASDAQ_code + "/" + "Raw_Features/Google_Trends/" + keyword
 
         #Using the super class to ensure a standard enviroment of instantiation
         super().__init__(NASDAQ_code, keyword, start_date, download_func, process_func, work_dir)
 
+    def sanity_check_if_keyword_has_data_on_default_start_date():
+        return google_trend_downloader.default_download_func
+
+
     
     def type_of_feature_downloader(self):
-        return "google_trend"
+        return google_trend_downloader.name
 
     
     # write downloaded feature to disk, aka, creating a file

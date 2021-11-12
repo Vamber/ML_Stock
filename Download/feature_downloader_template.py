@@ -50,6 +50,23 @@ class feature_downloader_template():
                     f.writerow(["dates"])
   
 
+
+    ##
+    # @Need to be Over-Write
+    ##
+
+    ##
+    # This function is important, because it will be used by gnerate_stock_features_csv.py
+    # For example if I want the google trend for the keyword RTX 3090 on day 2018-2-18
+    # But RTX 3090 was not even out yet, there will just be no data on 2018-2-18
+    # This means I can't have 3090 as a feature if default date is 2018-2-18
+    # 
+    ## 
+
+    def sanity_check_if_keyword_has_data_on_default_start_date():
+        raise Exception("sanity_check_if_keyword_has_data_on_default_start_date " + "not implemented")
+
+
     ##
     # @Need to be Over-Write
     ##
