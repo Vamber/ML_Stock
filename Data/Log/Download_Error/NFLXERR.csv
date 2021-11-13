@@ -1,8 +1,0 @@
-date,stock_name,function_name,function_args
-2023-1-5,NFLXERR,get_all_news_metadata_from_a_keyword_on_a_particular_date,Nvidia
-2023-1-5,NFLXERR,get_dataset_google_trend_score_for_keyword,Nvidia
-2021-10-16,NFLXERR,get_historical_dataset_for_a_stock,null
-2023-1-5,NFLXERR,get_all_news_metadata_from_a_keyword_on_a_particular_date,Nvidia
-2023-1-5,NFLXERR,get_dataset_google_trend_score_for_keyword,Nvidia
-2021-10-23,NFLXERR,get_historical_dataset_for_a_stock,null
-2021-10-23,NFLXERR,get_historical_dataset_for_a_stock,null

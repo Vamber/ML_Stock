@@ -12,6 +12,7 @@ class stock_price_downloader(feature_downloader_template):
     defualt_download_func = get_historical_dataset_for_a_stock
     default_process_func = lambda : 1/0
     name = "stock_price"
+    data_df_name = "price.csv"
 
     # NASDAQ_Code is needed for download_func to write log
     # keyword is not needed for stock price
@@ -66,12 +67,11 @@ class stock_price_downloader(feature_downloader_template):
         
         today = str(date.today())
         data = self.download_func(self.NASDAQ_code)
-        print(data)
         if data is None:
             self.append_date_to_dates_not_downloaded_csv(today)
         else:
             self.append_date_to_dates_downloaded_csv(today)
-            self.store_raw_feature_to_Data(data, "price" + ".csv")
+            self.store_raw_feature_to_Data(data, data_df_name)
 
 
 
@@ -81,7 +81,10 @@ class stock_price_downloader(feature_downloader_template):
     def redownload_missing_raw_feature_data(self):
 
         today = str(date.today())
-
+        #just using the method below to clear the datas_not_downloaded_csv
+        #so that the behavior of is_download_successful_for_everyday is not effected
+        self.get_lst_of_dates_missing_and_clear_dates_not_downloaded() 
+        
         if self.check_date_for_latest_download() != today:
             self.download_raw_feature_data()
 

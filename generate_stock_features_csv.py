@@ -66,20 +66,31 @@ def sanity_check_for_feature_of_stock(Nasdaq_code, default_date, google_trend_kw
     verify_func = google_news_downloader.sanity_check_if_keyword_has_data_on_default_start_date()
     news_kw_lst = news_kw_lst_str.strip("[").strip("]").split(",")
     for news_kw in news_kw_lst:
-        result = verify_func(Nasdaq_code, default_date, news_kw) is not None
+        downloaded_df = verify_func(Nasdaq_code, default_date, news_kw)
+        result = downloaded_df is not None
         results.append(result)
-        print("news kw " + news_kw + " validty check: " + f(result) )
+        print("news kw " + news_kw + 
+              " validty check: " + f(result) + 
+              " (" + str(downloaded_df["total_news_today"][0]) + " news found on default date )")
 
 
     return all(results)
 
-    
+
+
+
+def checking_if_a_Nasdaq_code_exists_in_csv(Nasdaq_code):
+    df = pd.read_csv(df_path)
+    return Nasdaq_code in list(df["Nasdaq_code"])
+
+
 
 
 
 def append_new_stock_and_features_to_csv(Nasdaq_code, default_date, google_trend_kw_lst, news_kw_lst):
 
     if not path.exists(df_path):
+        #please be very cautious when modifying collumns, it could have dire consequences on the remaining dependencies. 
         empty_df = pd.DataFrame(columns=["Nasdaq_code", "start_date", "google_trend_kw_lst", "news_kw_lst"])
         empty_df.to_csv(df_path, index = False, index_label=False)
 
@@ -87,6 +98,10 @@ def append_new_stock_and_features_to_csv(Nasdaq_code, default_date, google_trend
     Nasdaq_code = Nasdaq_code.strip("[").strip("]")
     default_date = default_date.strip("[").strip("]")
 
+    if checking_if_a_Nasdaq_code_exists_in_csv(Nasdaq_code):
+        print("Nasdaq_code :" + Nasdaq_code + " already exists in csv ")
+        print("Insertion failed, please consider the update option")
+        return False
 
     sanity_check_success =  sanity_check_for_feature_of_stock(Nasdaq_code, default_date, google_trend_kw_lst, news_kw_lst)
     if not sanity_check_success:
@@ -104,6 +119,9 @@ def append_new_stock_and_features_to_csv(Nasdaq_code, default_date, google_trend
     return True
     
 
+def display():
+    df = pd.read_csv(df_path)
+    print(df)
 
 
 if __name__ == "__main__":
@@ -115,17 +133,25 @@ if __name__ == "__main__":
         print("for details, perform python3 " + program_name + " --help" + "  <option>")
         print("possible options:")
         print("add : for adding a new stock into csv")
-        
+        print("delete : remove an existing row corresponding to one stock in stock_and_feature.csv")
+        print("display : printing out the current stock_and_feature.csv ")
 
-    elif len(cmd_arg) == 3 and cmd_arg[1] == "--help":
+        
+    ##
+    # HELP
+    ##
+    elif len(cmd_arg) == 3 and cmd_arg[1] == "--help" and cmd_arg[2] in ["add", "display", "delete"]:
         if cmd_arg[2] == "add":
             print("To insert a new stock to ML_stock auto data download and analysis:")
             print("Enter in the format:")
-            print("python3" + program_name + " add [Nasdaq_code] [first_day_dwload_data] [google_trend_kw_1, google_trend_kw_2, ...] [news_kw1, news_kw-2, ...]")
+            print("python3 " + program_name + " add [Nasdaq_code] [first_day_dwload_data] [google_trend_kw_1, google_trend_kw_2, ...] [news_kw1, news_kw-2, ...]")
             print("")
             print("eg:")
             print('python3 generate_stock_features_csv.py add [NVDA] [2019-2-14] "[buy nvidia stock, sell nvidia stock, nvidia stock, nvidia, amd]" "[nvidia, nvidia stock]"')
-
+    
+    ##
+    # ADD
+    ##
     elif len(cmd_arg) == 6 and cmd_arg[1] == "add":
         #### correct number of argument, starting checking the format ######
         for i in range(2, 6):
@@ -140,8 +166,26 @@ if __name__ == "__main__":
         append_attempt = append_new_stock_and_features_to_csv(cmd_arg[2], cmd_arg[3], cmd_arg[4], cmd_arg[5])
         if append_attempt:
             print("now stock_and_features.csv is :")
+            display()
+
+    ##
+    # DELETE
+    ##
+    elif len(cmd_arg) == 3 and cmd_arg[1] == "delete":
+        Nasdaq_code = cmd_arg[2].strip("[").strip("]")
+        if not checking_if_a_Nasdaq_code_exists_in_csv(Nasdaq_code):
+            print(Nasdaq_code + " is not found in stock_and_feature.csv " + ", no deletion performed")
+        else:
             df = pd.read_csv(df_path)
-            print(df)
+            df = df[df.Nasdaq_code != Nasdaq_code]
+            df.to_csv(df_path, index = False)
+            print(Nasdaq_code + " has been deleted")
+    ##
+    # DISPLAY
+    ##
+    elif len(cmd_arg) == 2 and cmd_arg[1] == "display":
+        display()
+
 
     else:
         print("invalid format")
