@@ -97,6 +97,8 @@ def append_new_stock_and_features_to_csv(Nasdaq_code, default_date, google_trend
 
     Nasdaq_code = Nasdaq_code.strip("[").strip("]")
     default_date = default_date.strip("[").strip("]")
+    google_trend_kw_lst = google_trend_kw_lst.replace(", ", ",")
+    news_kw_lst = news_kw_lst.replace(", ", ",")
 
     if checking_if_a_Nasdaq_code_exists_in_csv(Nasdaq_code):
         print("Nasdaq_code :" + Nasdaq_code + " already exists in csv ")
