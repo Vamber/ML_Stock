@@ -106,9 +106,14 @@ class feature_downloader_template():
     def describe(self):
         s =  "[" + self.type_of_feature_downloader() + "]" + "  " 
         s += "[" + self.NASDAQ_code + "]" + "  "
-        s += "[" + self.keyword + "]" + " "
+        
+        # stock price really doesn't have a keyword
+        if not self.type_of_feature_downloader() == "stock_price":
+            s += "[" + self.keyword + "]" + " "
+
         s += self.check_date_for_latest_download() + " "
-        s += "Download_success=" + str(self.is_download_successful_for_everyday())
+        s += "Download_success=" + str(self.is_download_successful_for_everyday()) + " "
+        s += "Process_raw_feature_success="  + str(self.is_processing_raw_feature_successful_for_everyday())
         return s
 
 
@@ -185,6 +190,22 @@ class feature_downloader_template():
 
         return df.empty
 
+    
+    #clever way to check if processing is good
+    def is_processing_raw_feature_successful_for_everyday(self):
+        return self.check_date_for_latest_process() == self.check_date_for_latest_download()
+
+    
+
+
+
+    ###
+    ### The idea of process is that, as long as there is one day of data that's missing
+    ### process for the all the daily csv is paused until download is successful for everyday
+    ### This design makes other part of the software easy
+    ### for example, are all the raw_features processed successfully ?
+    ### we can simply check if check_date_for_latest_process()==check_date_for_latest_download()
+    ###
 
 
     def process_raw_feature(self):

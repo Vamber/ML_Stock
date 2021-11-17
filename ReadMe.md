@@ -69,6 +69,6 @@ what to do if I want add a new feature
 1. create its downloader object and inherit it from downloader template
 2. modify generate_stock_features_csv.py to make sure it's included
 3. add a new collumn to stock and feature .csv
-4. modify downloader_object_hypervisor()
+4. modify downloader_object_hypervisor(), modify 
 
       

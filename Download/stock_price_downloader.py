@@ -36,7 +36,7 @@ class stock_price_downloader(feature_downloader_template):
         work_dir = "Data/Feature/" + NASDAQ_code + "/" + "Raw_Features/Stock_Price" 
 
         #Using the super class to ensure a standard enviroment of instantiation
-        super().__init__(NASDAQ_code, keyword, start_date, download_func, process_func, work_dir)
+        super().__init__(NASDAQ_code, "null", "null", download_func, process_func, work_dir)
 
     
     def sanity_check_if_keyword_has_data_on_default_start_date():
@@ -46,7 +46,7 @@ class stock_price_downloader(feature_downloader_template):
     def type_of_feature_downloader(self):
         return stock_price_downloader.name
 
-    
+
 
     ##
     # The stock_price_downloader is intrinsically different from google_news and google_trend
@@ -60,8 +60,7 @@ class stock_price_downloader(feature_downloader_template):
     # Therefore, it is important to overwrte download_raw_feature_data function
     #
     ## 
-
-
+  
     def download_raw_feature_data(self):
         # notice how we are not looping through the dates at all
         
@@ -71,7 +70,7 @@ class stock_price_downloader(feature_downloader_template):
             self.append_date_to_dates_not_downloaded_csv(today)
         else:
             self.append_date_to_dates_downloaded_csv(today)
-            self.store_raw_feature_to_Data(data, data_df_name)
+            self.store_raw_feature_to_Data(data, self.data_df_name)
 
 
 
