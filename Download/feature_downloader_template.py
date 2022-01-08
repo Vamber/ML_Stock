@@ -18,7 +18,7 @@ import csv
 from os import path
 import os
 import datetime as DT
-
+import concurrent.futures 
 
 class feature_downloader_template():
 
@@ -34,15 +34,15 @@ class feature_downloader_template():
         self.download_func = download_func
         self.process_func = process_func
         self.work_dir = work_dir
-        self.process_work_dir = self.work_dir.replace("/Raw_Features/", "/Processed_Features/")
+        self.processed_work_dir = self.work_dir.replace("/Raw_Features/", "/Processed_Features/")
 
         if not path.exists(self.work_dir):
             os.makedirs(self.work_dir)
 
-        if not path.exists(self.process_work_dir):
-            os.makedirs(self.process_work_dir)
+        if not path.exists(self.processed_work_dir):
+            os.makedirs(self.processed_work_dir)
 
-        for file_name in ["dates_downloaded.csv" , "dates_not_downloaded.csv",  "last_date_processed.csv"]:
+        for file_name in ["dates_downloaded.csv" , "dates_not_downloaded.csv",  "dates_processed.csv"]:
             file_name = self.work_dir + "/" + file_name
             if not path.exists(file_name):
                 with open(file_name, mode = "w") as f:
@@ -90,17 +90,6 @@ class feature_downloader_template():
     
 
 
-    #this helper function can be inherited 
-    def check_date_for_latest_download(self):
-        dates_downloaded_table_path = self.work_dir + "/" + "dates_downloaded.csv"
-        
-        df = pd.read_csv(dates_downloaded_table_path)
-        if df.empty:
-            return self.start_date
-        else:
-            #inherited from Super
-            df = self.sort_table_by_dates(dates_downloaded_table_path)
-            return df.iloc[-1]["dates"]
 
 
     def describe(self):
@@ -118,33 +107,171 @@ class feature_downloader_template():
 
 
 
-    def check_date_for_latest_process(self):
-        last_date_processed_path = self.work_dir + "/" + "last_date_processed.csv"
 
-        df = pd.read_csv(last_date_processed_path)
-        if df.empty:
-            return self.start_date
-        else:
-            return df.iloc[-1]["dates"]
-
-
-
+    #core
+    def download_raw_feature_data_for_just_one_day(self, date):
         
+        success = ""
+
+        data = self.download_func(self.NASDAQ_code, date, self.keyword)
+
+        if data is None:
+            self.append_date_to_dates_not_downloaded_csv(date)
+
+        else:
+            self.append_date_to_dates_downloaded_csv(date)
+            self.store_raw_feature_to_Data(data, date + ".csv")
+            success = "$"
+
+        s = self.keyword
+        s = s + (30-len(s))*" " + date
+        print(s + (45-len(s))*" " + success)
+
+
+    #core
+    #For Lazy redownload case
+    #giving up downloading for google trend if the date is between 2021-08-08->2021-10-03
+    def download_raw_feature_data_for_just_one_day_LAZY(self, date):
+
+        if self.type_of_feature_downloader() == "google_trend" and date >= "2021-08-08" and date <= "2021-10-03":
+            #skipping attemp to download
+            print("Google-trend-missing date domain, skipped   " + date)
+            self.append_date_to_dates_not_downloaded_csv(date)
+            return
+        
+        else:
+            self.download_raw_feature_data_for_just_one_day(date)
+    
+        
+
+    #core
     # Download the raw feature for every single between last download and today
     # 
     def download_raw_feature_data(self):
         last_downloaded_date = self.check_date_for_latest_download()
         lst_of_dates = self.get_lst_of_dates_between_target_and_yesterday(last_downloaded_date)
 
+        # downloading data concurrenly
+        # the executor will automatically handle process scheudling 
+        with concurrent.futures.ThreadPoolExecutor(max_workers=48) as executor:
+            executor.map(self.download_raw_feature_data_for_just_one_day, lst_of_dates)
+
+        #since the downloading those dates might not be scheduled sequentially
+        #we sort the table again
+        #it's not exactly for function purpose, because check_last_downloaded_date will sort it again
+        #it's just easier to read
+
+
+
+    def redownload_missing_raw_feature_data(self):
+        lst_of_dates = self.get_lst_of_dates_missing_and_clear_dates_not_downloaded()
+
+        #Contemporary Complexity Requires Concurrency
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            executor.map(self.download_raw_feature_data_for_just_one_day, lst_of_dates)
+
+    #In this mode, all missing data between 2021-08-09 -> 2021-10-03 will be skipped
+    def redownload_missing_raw_feature_data_lazy_mode(self):
+        return 0
+
+
+        
+
+    
+    ######
+    ######
+    # this section creates the Multiprocess code for the above two function
+    # allow them to be multiprocessed from Hypervisor's perspective
+    # essential the function returns a list of process, but actually don't execute them
+    # whereas the hypervisor paralles them 
+
+    #core
+    def make_proc(self, date):
+        return lambda : self.download_raw_feature_data_for_just_one_day(date)
+
+    #core
+    #for Lazy Redownload feature
+    def make_proc_LAZY(self, date):
+        return lambda : self.download_raw_feature_data_for_just_one_day_LAZY(date)
+
+    #core
+    def download_raw_feature_data_get_lst_of_process(self):
+        #proc_lst contains bunch of lambad functions takes in no args, each one of them performs download for one day
+        proc_lst = []
+        last_downloaded_date = self.check_date_for_latest_download()
+        lst_of_dates = self.get_lst_of_dates_between_target_and_yesterday(last_downloaded_date)
         for date in lst_of_dates:
-            data = self.download_func(self.NASDAQ_code, date, self.keyword)
+            proc_lst.append(self.make_proc(date))
 
-            if data is None:
-                self.append_date_to_dates_not_downloaded_csv(date)
+        return proc_lst
 
-            else:
-                self.append_date_to_dates_downloaded_csv(date)
-                self.store_raw_feature_to_Data(data, date + ".csv")
+    #core
+    def redownload_missing_raw_feature_data_get_lst_of_process(self):
+        proc_lst = []
+        lst_of_dates = self.get_lst_of_dates_missing_and_clear_dates_not_downloaded()
+        for date in lst_of_dates:
+            proc_lst.append(self.make_proc(date))
+
+        return proc_lst
+
+    #core
+    #download all the missing datas, but skip if the date is between "2021-08-09 -->2021-10-03 for google trend"
+    def redownload_missing_raw_feature_data_get_lst_of_process_LAZY(self):
+        proc_lst = []
+        lst_of_dates = self.get_lst_of_dates_missing_and_clear_dates_not_downloaded()
+        for date in lst_of_dates:
+            proc_lst.append(self.make_proc_LAZY(date))
+
+        return proc_lst
+
+
+
+
+
+
+    # core
+    # basically if there is any day not downloaded, return false
+    # only when the dates_not_downloaded.csv is empty, return True
+    def is_download_successful_for_everyday(self):
+        missing_data_table_path = self.work_dir + "/" + "dates_not_downloaded.csv"
+        df = pd.read_csv(missing_data_table_path)
+        return df.empty
+
+
+
+    #core
+    #clever way to check if processing is good
+    def is_processing_raw_feature_successful_for_everyday(self):
+        return len(self.get_lst_of_dates_donwloaded()) == len(self.get_lst_of_dates_processed()) 
+
+    
+
+
+
+    ###
+    ### Let A be the set of dates of raw_features downloaded
+    ### Let B be the set of dates of features processed
+    ### 
+    ### It is clear that B is a subset of A
+    ### 
+    ### Find B Union ^A, and process them all
+    ###
+    ###
+
+    #core
+    def process_raw_feature(self):
+
+       
+        lst_of_dates = self.get_lst_of_dates_downloaded_but_not_processed()
+
+        for date in lst_of_dates:
+            self.store_processed_feature_to_Data(date)
+            print(self.keyword + (30-len(self.keyword)) * " " + date)
+
+        for date in lst_of_dates:
+            self.append_date_to_dates_processed_csv(date)
+
+    
 
 
 
@@ -152,6 +279,72 @@ class feature_downloader_template():
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    ##############
+    #
+    # All the sections below deals with dates related stuffs
+    # Such as dates checking, and writting to dates
+    #
+    ##############
+
+
+
+
+
+
+    #this helper function can be inherited 
+    def check_date_for_latest_download(self):
+        dates_downloaded_table_path = self.work_dir + "/" + "dates_downloaded.csv"
+        
+        df = pd.read_csv(dates_downloaded_table_path)
+        if df.empty:
+            return self.start_date
+        else:
+            #inherited from Super
+            df = self.sort_table_by_dates(dates_downloaded_table_path)
+            return df.iloc[-1]["dates"]
+
+    
+
+
+    #helper
     def get_lst_of_dates_missing_and_clear_dates_not_downloaded(self):
         missing_dates_table_path = self.work_dir + "/" + "dates_not_downloaded.csv"
         df = pd.read_csv(missing_dates_table_path)
@@ -167,69 +360,16 @@ class feature_downloader_template():
         return list(df["dates"].unique())
 
 
-    def redownload_missing_raw_feature_data(self):
-        lst_of_dates = self.get_lst_of_dates_missing_and_clear_dates_not_downloaded()
-
-        for date in lst_of_dates:
-            data = self.download_func(self.NASDAQ_code, date, self.keyword)
-
-            if data is None:
-                self.append_date_to_dates_not_downloaded_csv(date)
-
-            else:
-                self.append_date_to_dates_downloaded_csv(date)
-                self.store_raw_feature_to_Data(data, date + ".csv")
-
-        
-    
-    # basically if there is any day not downloaded, return false
-    # only when the dates_not_downloaded.csv is empty, return True
-    def is_download_successful_for_everyday(self):
-        missing_data_table_path = self.work_dir + "/" + "dates_not_downloaded.csv"
-        df = pd.read_csv(missing_data_table_path)
-
-        return df.empty
-
-    
-    #clever way to check if processing is good
-    def is_processing_raw_feature_successful_for_everyday(self):
-        return self.check_date_for_latest_process() == self.check_date_for_latest_download()
-
-    
+    #helper
+    def clear_dates_processed(self):
+        df_path = self.work_dir + "/" + "dates_processed.csv"
+        os.remove(df_path)
+        with open(mdf_path, mode = "w") as f:
+            f = csv.writer(f)
+            f.writerow(["dates"])
 
 
-
-    ###
-    ### The idea of process is that, as long as there is one day of data that's missing
-    ### process for the all the daily csv is paused until download is successful for everyday
-    ### This design makes other part of the software easy
-    ### for example, are all the raw_features processed successfully ?
-    ### we can simply check if check_date_for_latest_process()==check_date_for_latest_download()
-    ###
-
-
-    def process_raw_feature(self):
-
-        if not self.is_download_successful_for_everyday():
-            return 
-        
-        last_date_processed = self.check_date_for_latest_process()
-        last_date_downloaded = self.check_date_for_latest_download()
-        #notice, the lst_of_dates actually doesn't include last_date_processed
-        #Because it is already processes. 
-        lst_of_dates = self.get_lst_of_dates_between_two_date(last_date_processed, last_date_downloaded)
-
-        for date in lst_of_dates:
-            self.store_processed_feature_to_Data(date)
-
-        self.update_date_last_processed(last_date_downloaded)
-
-    
-    
-    def reprocess_raw_feature(self):
-        raise Exception("reprocess_raw_feature" + " not implemented")
-
-
+    #helper
     #sort the table, and also update the file-system
     def sort_table_by_dates(self, path_to_table):
         df = pd.read_csv(path_to_table)
@@ -238,11 +378,67 @@ class feature_downloader_template():
         df.to_csv(path_to_table, index=False)
         return df
 
-    
+    #helper
     def get_lst_of_dates_downloaded(self):
         path_to_table = self.work_dir + "/" + "dates_downloaded.csv"
         df = pd.read_csv(path_to_table)
         return list(df["dates"])
+
+
+    #helper
+    def get_lst_of_dates_not_downloaded(self):
+        path_to_table = self.work_dir + "/" + "dates_not_downloaded.csv"
+        df = pd.read_csv(path_to_table)
+        return list(df["dates"])
+
+
+    #helper
+    def get_lst_of_dates_processed(self):
+        path_to_table = self.work_dir + "/" + "dates_processed.csv"
+        df = pd.read_csv(path_to_table)
+        return list(df["dates"])
+        
+    #helper
+    def get_lst_of_dates_downloaded_but_not_processed(self):
+        lst_dates_downloaded = self.get_lst_of_dates_downloaded()
+        lst_dates_processed  = self.get_lst_of_dates_processed()
+        return list(set(lst_dates_downloaded) - set(lst_dates_processed))
+    
+    
+    #helper
+    # The purpose of this function is more for checking which dates are missing easily
+    # For example, currenly, it seems like all the google trend data are simply just missing between 2021-8-10 -->2021-10-15, and no one knows why
+    def get_lst_of_missing_dates_time_sections(self):
+
+        if self.is_download_successful_for_everyday():
+            return []
+
+
+        missing_dates = self.get_lst_of_dates_not_downloaded()
+        missing_dates.sort()
+        
+        prev_date_obj = DT.date(2000, 2, 14)
+        missing_dates_time_sections = []
+
+        for cur_date in missing_dates:
+            cur_date_obj = self.date_str_2_date_obj(cur_date)
+            if cur_date_obj - DT.timedelta(days=1) != prev_date_obj:
+                missing_dates_time_sections.append(str(prev_date_obj) + "<-")
+                missing_dates_time_sections.append(cur_date + "->")
+            prev_date_obj = cur_date_obj
+
+        missing_dates_time_sections.append(cur_date + "<-")
+        return missing_dates_time_sections
+
+
+#turn a date in string format, "2020-08-15" --> Date(2020,08,15)
+    def date_str_2_date_obj(self, date_str):
+        year_month_day_lst = date_str.split("-")
+        year = int(year_month_day_lst[0])
+        month = int(year_month_day_lst[1])
+        day = int(year_month_day_lst[2])
+        date_obj = DT.date(year, month, day)
+        return date_obj
 
 
 
@@ -250,12 +446,7 @@ class feature_downloader_template():
     def get_lst_of_dates_between_target_and_yesterday(self, target_date):
 
         yesterday = str(date.today() - timedelta(days = 1))
-
-        year_month_day_lst = target_date.split("-")
-        year = int(year_month_day_lst[0])
-        month = int(year_month_day_lst[1])
-        day = int(year_month_day_lst[2])
-        target_date = DT.date(year, month, day)
+        target_date = self.date_str_2_date_obj(target_date)
         target_date = target_date+ DT.timedelta(days=1)
 
         #if the target date is 2018-2-18, then we would want to start downloading on
@@ -264,13 +455,9 @@ class feature_downloader_template():
         return [str(i).split()[0] for i in dates]
 
 
-    # Just like the func above, the dates returned actually doesn't include from_date
+    
     def get_lst_of_dates_between_two_date(self, from_date, to_date):
-        year_month_day_lst = from_date.split("-")
-        year = int(year_month_day_lst[0])
-        month = int(year_month_day_lst[1])
-        day = int(year_month_day_lst[2])
-        from_date = DT.date(year, month, day)
+        from_date = self.date_str_2_date_obj(from_date)
         from_date = from_date + DT.timedelta(days=1)
 
         dates = list(pd.date_range(start = from_date, end = to_date))    
@@ -290,22 +477,32 @@ class feature_downloader_template():
             f = csv.writer(f)
             f.writerow([date])
 
-    #this basically deltes the old file and making a new one
-    def update_date_last_processed(self, date):
-        path_to_table = self.work_dir + "/" + "last_date_processed.csv"
-        os.remove(path_to_table)
+    def append_date_to_dates_processed_csv(self, date):
+        path_to_table = self.work_dir + "/" + "dates_processed.csv"
         with open(path_to_table, mode = "a") as f:
             f = csv.writer(f)
-            f.writerow(["dates"])
             f.writerow([date])
+
+    #when dates_not_downloaded.csv is corruptted, this is the function to call 
+    #it computes date not downloaded based on date downloaded
+    def dates_missing_data_corruption_recovery(self):
+        
+        if self.type_of_feature_downloader() == "stock_price":
+            return
+
+        last_downloaded_date = self.check_date_for_latest_download()
+        default_start_date = self.start_date
+        lst_of_dates_need_to_be_downloaded = self.get_lst_of_dates_between_two_date(default_start_date, last_downloaded_date)
+        dates_downloaded = self.get_lst_of_dates_downloaded()
+
+        #clean dates downloaded table, since it could be corrupted
+        self.get_lst_of_dates_missing_and_clear_dates_not_downloaded()
+
+        dates_missing = list(set(lst_of_dates_need_to_be_downloaded) - set(dates_downloaded))
+        for date in dates_missing:
+            self.append_date_to_dates_not_downloaded_csv(date)
+
+
         
 
 
-############
-#
-#
-# Sort Table by dates, make sure dates return by
-# get_lst_of_missing_dates_is_unique
-#
-#
-############

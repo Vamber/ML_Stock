@@ -36,11 +36,9 @@ def sentence_contains_keyword(sentence, lst_of_keyword):
 from Utils.sentiment_model_2_func import evaluate_sentiment_score_for_a_sentence
 
 
-def eval_sentiment_score_for_title(title, lst_of_keyword):
-	if sentence_contains_keyword(title, lst_of_keyword):
-		return evaluate_sentiment_score_for_a_sentence(title)
-	else:
-		return 0.0
+def eval_sentiment_score_for_title(title):
+	
+	return round(evaluate_sentiment_score_for_a_sentence(title), 1)
 
 
 ####

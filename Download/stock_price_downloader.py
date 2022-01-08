@@ -48,6 +48,12 @@ class stock_price_downloader(feature_downloader_template):
 
 
 
+  # write downloaded feature to disk, aka, creating a file
+    # since the data downloaded is df, we can just use df.to_csv
+    def store_raw_feature_to_Data(self, raw_feature, file_name):
+        raw_feature.to_csv(self.work_dir + "/" + file_name)
+
+
     ##
     # The stock_price_downloader is intrinsically different from google_news and google_trend
     # Because you don't need to download the data from everyday like google_news or google_trend
@@ -62,8 +68,12 @@ class stock_price_downloader(feature_downloader_template):
     ## 
   
     def download_raw_feature_data(self):
-        # notice how we are not looping through the dates at all
         
+        #removes all historical days not downloaded, because they don't matter anymore
+        self.get_lst_of_dates_missing_and_clear_dates_not_downloaded()
+
+
+        # notice how we are not looping through the dates at all
         today = str(date.today())
         data = self.download_func(self.NASDAQ_code)
         if data is None:
@@ -72,6 +82,7 @@ class stock_price_downloader(feature_downloader_template):
             self.append_date_to_dates_downloaded_csv(today)
             self.store_raw_feature_to_Data(data, self.data_df_name)
 
+        
 
 
     ########
@@ -87,40 +98,50 @@ class stock_price_downloader(feature_downloader_template):
         if self.check_date_for_latest_download() != today:
             self.download_raw_feature_data()
 
+
+    ######
+    ######
+    # The two following function are needed for multi-processesng to work
+    ######
+    ######
+    def download_raw_feature_data_get_lst_of_process(self):
+        return [lambda : self.download_raw_feature_data()]
+
+    def redownload_missing_raw_feature_data_get_lst_of_process(self):
+        return [lambda : self.redownload_missing_raw_feature_data()]
+
+
+
     
 
 
     #####
     # Like-wise, this function needs to be overloaded 
+    #
+    # Here is the logic, when process_raw_feature is called, there is exactly 0 or 1 date
+    # inside "lst_of_dates_not_downloaded" (since both download_feature and redwnload_feature would clear the data)
+    #  
+    # Therefore, if there is 0 item, that means all dates has been donwloaded, therefore, just process the date
+    #            if there is 1 item, that means the data from today is missing, therefore, don't process and cleans date_processes.csv table
+    #                                                    delete all previous dates processed, so that is_process_successful would return false 
     #####
     def process_raw_feature(self):
 
         if not self.is_download_successful_for_everyday():
-            return 
-        
-        last_date_processed = self.check_date_for_latest_process()
-        last_date_downloaded = self.check_date_for_latest_download()
-        #notice, the lst_of_dates actually doesn't include last_date_processed
-        #Because it is already processes. 
-        lst_of_dates = self.get_lst_of_dates_between_two_date(last_date_processed, last_date_downloaded)
+            self.clear_dates_processed()
+            return
 
-        for date in lst_of_dates:
-            self.store_processed_feature_to_Data(date)
-
-        self.update_date_last_processed(last_date_downloaded)
-
-
+        else:
+            today = str(date.today())
+            self.store_processed_feature_to_Data()
+            self.append_date_to_dates_processed_csv(today)
     
 
-    # write downloaded feature to disk, aka, creating a file
-    # since the data downloaded is df, we can just use df.to_csv
-    def store_raw_feature_to_Data(self, raw_feature, file_name):
-        raw_feature.to_csv(self.work_dir + "/" + file_name)
-
-    
 
 
     # process the raw data correspondes to date
     # and create its corresponding counter parts in /Processed_Feature/
-    def store_processed_feature_to_Data(self, date):
-        raise Exception("still working on this")
+    # for stock price, there no processing we need to do, therefore just copy it from work_dir to processed_work_dir
+    def store_processed_feature_to_Data(self):
+        raw_feature_df = pd.read_csv(self.work_dir + "/" + self.data_df_name)
+        raw_feature_df.to_csv(self.processed_work_dir + "/" + self.data_df_name, index=False)

@@ -1,5 +1,6 @@
 from Download.feature_downloader_template import feature_downloader_template
 from Utils.google_news_utils import get_news_metadata_df_from_a_keyword_on_a_particular_date
+from Utils.sentiment_scoring_strategy import  eval_sentiment_score_for_title
 import pandas as pd
 import csv
 
@@ -8,7 +9,7 @@ import csv
 class google_news_downloader(feature_downloader_template):
 
     default_download_func = get_news_metadata_df_from_a_keyword_on_a_particular_date
-    default_process_func = lambda : 1/0
+    default_process_func = eval_sentiment_score_for_title
     name = "google_news"
 
     # NASDAQ_Code is needed for download_func to write log
@@ -54,4 +55,14 @@ class google_news_downloader(feature_downloader_template):
     # process the raw data correspondes to date
     # and create its corresponding counter parts in /Processed_Feature/
     def store_processed_feature_to_Data(self, date):
-        raise Exception("This is not impletemented yet, Vamber is still thinking about this")
+
+        df = pd.read_csv(self.work_dir + "/" + date + ".csv")
+        df = df.drop(columns=["link", "published"])
+        #handling the case when there is just no news at all
+        if df["total_news_today"][0] == 0:
+            df["sentiment_score"] = [0]
+
+        else:
+            df["sentiment_score"] = df["title"].apply(self.process_func)
+
+        df.to_csv(self.processed_work_dir + "/" + date + ".csv", index=False)

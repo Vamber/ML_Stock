@@ -61,7 +61,7 @@ class google_trend_downloader(feature_downloader_template):
         path_to_raw_feature = self.work_dir + "/" + date + ".csv"
         df = pd.read_csv(path_to_raw_feature)
         score_vector_df = self.process_func(df, self.keyword)
-        path_to_processed_table = self.process_work_dir + "/" + date +".csv"
+        path_to_processed_table = self.processed_work_dir + "/" + date +".csv"
         score_vector_df.to_csv(path_to_processed_table)
 
         
