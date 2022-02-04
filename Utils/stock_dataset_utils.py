@@ -22,7 +22,7 @@ def get_historical_dataset_for_a_stock_helper(stock_NASDAQ_code):
 
 	try:
 		stock = yf.Ticker(stock_NASDAQ_code)
-		hist = stock.history(period = "99y")
+		hist = stock.history(period = "5y")
 		return  hist
 
 	except:
@@ -45,3 +45,12 @@ def get_historical_dataset_for_a_stock(stock_NASDAQ_code):
 	
 
 
+def get_dataset_for_a_stock_for_last_year(stock_NASDAQ_code):
+
+	try:
+		stock = yf.Ticker(stock_NASDAQ_code)
+		hist = stock.history(period = "1y")
+		return  hist
+
+	except:
+		return None

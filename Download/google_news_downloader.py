@@ -1,6 +1,7 @@
 from Download.feature_downloader_template import feature_downloader_template
 from Utils.google_news_utils import get_news_metadata_df_from_a_keyword_on_a_particular_date
 from Utils.sentiment_scoring_strategy import  eval_sentiment_score_for_title
+from Utils.google_news_pre_filter import pre_filter_raw_news_df
 import pandas as pd
 import csv
 
@@ -11,6 +12,7 @@ class google_news_downloader(feature_downloader_template):
     default_download_func = get_news_metadata_df_from_a_keyword_on_a_particular_date
     default_process_func = eval_sentiment_score_for_title
     name = "google_news"
+    filter_func = pre_filter_raw_news_df
 
     # NASDAQ_Code is needed for download_func to write log
     # keyword is searched for google news, and it must be contained within the news title
@@ -57,9 +59,12 @@ class google_news_downloader(feature_downloader_template):
     def store_processed_feature_to_Data(self, date):
 
         df = pd.read_csv(self.work_dir + "/" + date + ".csv")
+        #filtering unnessary news source
+        df = google_news_downloader.filter_func(df)
+
         df = df.drop(columns=["link", "published"])
         #handling the case when there is just no news at all
-        if df["total_news_today"][0] == 0:
+        if df["total_news_today"].iloc[0] == 0:
             df["sentiment_score"] = [0]
 
         else:

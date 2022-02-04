@@ -242,7 +242,7 @@ class feature_downloader_template():
     #core
     #clever way to check if processing is good
     def is_processing_raw_feature_successful_for_everyday(self):
-        return len(self.get_lst_of_dates_donwloaded()) == len(self.get_lst_of_dates_processed()) 
+        return len(self.get_lst_of_dates_downloaded()) == len(self.get_lst_of_dates_processed()) 
 
     
 
