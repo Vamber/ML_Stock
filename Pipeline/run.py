@@ -24,6 +24,7 @@ def exec_cmd(cmd):
         raise Exception("above cmd can failed")
 
 def main():
+
     
     if not path.exists(big_lock):
         print("BIG_LOCK is not open, pipeline can not begin")
@@ -31,6 +32,12 @@ def main():
     if not path.exists(small_lock):
         print("SMALL_LOCK is not open, pipeline can not begin")
         exit()
+
+    print("Pipeline starts in 5 seconds")
+    for i in range(0,5):
+        print(5-i)
+        time.sleep(1)
+
 
     os.rmdir(small_lock)
 
@@ -49,7 +56,7 @@ def main():
     start_time = time.time()
     #the week day case
     if pd.Timestamp(today).dayofweek <= 4:
-        exec_cmd("pre_filter_raw_news_df" + " >> " + today_log)
+        exec_cmd("/bin/python3 /home/vamber/ML_stock/Download/download_main.py weekdays" + " >> " + today_log)
         exec_cmd("/bin/python3 /home/vamber/ML_stock/ML_Models/ml_model_main.py weekdays" + " >> " + today_log)
         exec_cmd("/bin/python3 /home/vamber/ML_stock/Experts/expert_main.py" + " >>  " + today_log)
         end_time = time.time()
@@ -69,6 +76,10 @@ def main():
 
 
     os.makedirs(small_lock)
+
+    ##
+    ## Add code here to shut down the VM
+    exec_cmd(" sudo systemctl poweroff ")
 
 
 
